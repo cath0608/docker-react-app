@@ -1,4 +1,4 @@
-name: Build, Scan & Deploy React App (No Docker Hub)
+name: Build, Scan & Deploy React App
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  deploy:
+  build-scan-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,19 +19,30 @@ jobs:
       - name: Build Docker image
         run: docker build -t docker-react-app:latest .
 
-      - name: Save image as tar
+      - name: Run Trivy security scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: docker-react-app:latest
+          format: table
+          exit-code: 0
+          severity: CRITICAL,HIGH
+
+      - name: Save Docker image as tar
         run: docker save docker-react-app:latest -o react-app.tar
 
-      - name: Copy image to VM
+      - name: List files to verify tar
+        run: ls -lh
+
+      - name: Copy image to GCP VM
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_VM_SSH_KEY }}
           source: "react-app.tar"
-          target: "~/"
+          target: "~"
 
-      - name: Deploy on VM
+      - name: Deploy on GCP VM
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.GCP_VM_IP }}
@@ -41,4 +52,4 @@ jobs:
             docker load -i react-app.tar
             docker stop docker-react-app || true
             docker rm docker-react-app || true
-            docker run -d -p 80:3000 --name docker-react-app docker-react-app:latest
+            docker run -d -p 80:80 --name docker-react-app docker-react-app:latest
