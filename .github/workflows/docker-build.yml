@@ -28,10 +28,13 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Save Docker image as tar
-        run: docker save docker-react-app:latest -o react-app.tar
+        run: |
+          sudo chmod 777 .  # Ensure current directory is writable
+          docker save docker-react-app:latest -o react-app.tar
+          chmod 644 react-app.tar  # Ensure it's readable
 
-      - name: List files to verify tar
-        run: ls -lh
+      - name: Verify tar file
+        run: ls -lh react-app.tar
 
       - name: Copy image to GCP VM
         uses: appleboy/scp-action@v0.1.7
